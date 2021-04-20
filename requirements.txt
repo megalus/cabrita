@@ -32,7 +32,7 @@ pluggy==0.6.0
 prompt-toolkit==1.0.15
 psutil==5.4.5
 ptyprocess==0.5.2
-py==1.5.3
+py==1.10.0
 pycodestyle==2.4.0
 pydashing==1.0.0
 pydocstyle==2.1.1
