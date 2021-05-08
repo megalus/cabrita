@@ -5,16 +5,17 @@ This module has the Box Class, which is the building block for dashboards.
 Each box updates his data in a separate thread in Python.
 """
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
+import sentry_sdk
 from buzio import formatStr
 from dashing import dashing
 from tabulate import tabulate
 
-from cabrita.abc.utils import format_color, get_sentry_client
+from cabrita.abc.utils import format_color
 from cabrita.components import BoxColor
 from cabrita.components.config import Compose
-from cabrita.components.docker import DockerInspect, PortView, PortDetail
+from cabrita.components.docker import DockerInspect, PortDetail, PortView
 from cabrita.components.git import GitInspect
 
 
@@ -30,10 +31,8 @@ def update_box(box):
     try:
         box.run()
         return box.widget
-    except Exception:
-        client = get_sentry_client()
-        if client:
-            client.captureException()
+    except Exception as error:
+        sentry_sdk.capture_exception(error)
         raise
 
 
@@ -46,8 +45,13 @@ class Box:
     using the data from Config and Compose classes.
     """
 
-    def __init__(self, background_color: BoxColor = BoxColor.black, compose: Compose = None, git: GitInspect = None,
-                 docker: DockerInspect = None) -> None:
+    def __init__(
+        self,
+        background_color: BoxColor = BoxColor.black,
+        compose: Compose = None,
+        git: GitInspect = None,
+        docker: DockerInspect = None,
+    ) -> None:
         """Init class."""
         self._included_service_list = []  # type: list
         self.last_update = datetime.now()
@@ -58,8 +62,12 @@ class Box:
         self._background_color = background_color.value
         self._services = []  # type: List[str]
         self.data_inspected_from_service = {}  # type: Dict[Any, Any]
-        self._widget = dashing.Text("Fetching data...", color=6, border_color=5,
-                                    background_color=background_color.value)
+        self._widget = dashing.Text(
+            "Fetching data...",
+            color=6,
+            border_color=5,
+            background_color=background_color.value,
+        )
 
     @property
     def can_update(self) -> bool:
@@ -102,7 +110,7 @@ class Box:
 
         :return: float
         """
-        return float(self.data.get('interval', 0.50))
+        return float(self.data.get("interval", 0.50))
 
     @property
     def show_git(self) -> bool:
@@ -112,7 +120,7 @@ class Box:
 
         :return: bool
         """
-        return self.data.get('show_git', True)
+        return self.data.get("show_git", True)
 
     @property
     def show_revision(self) -> bool:
@@ -122,7 +130,7 @@ class Box:
 
         :return: bool
         """
-        return self.data.get('show_revision', False)
+        return self.data.get("show_revision", False)
 
     @property
     def port_view(self) -> PortView:
@@ -132,7 +140,7 @@ class Box:
 
         :return: PortView enum property
         """
-        return PortView(self.data.get('port_view', PortView.hidden))
+        return PortView(self.data.get("port_view", PortView.hidden))
 
     @property
     def port_detail(self) -> PortDetail:
@@ -143,7 +151,7 @@ class Box:
 
         :return: PortDetail enum property
         """
-        return PortDetail(self.data.get('port_detail', PortDetail.external))
+        return PortDetail(self.data.get("port_detail", PortDetail.external))
 
     @property
     def categories(self) -> List[str]:
@@ -153,7 +161,7 @@ class Box:
 
         :return: list
         """
-        return self.data.get('categories', [])
+        return self.data.get("categories", [])
 
     @property
     def title(self) -> str:
@@ -163,7 +171,7 @@ class Box:
 
         :return: string
         """
-        return self.data.get('name', 'Box')
+        return self.data.get("name", "Box")
 
     @property
     def size(self) -> str:
@@ -173,7 +181,7 @@ class Box:
 
         :return: string
         """
-        return self.data.get('size', 'large')
+        return self.data.get("size", "large")
 
     @property
     def main(self) -> bool:
@@ -184,7 +192,7 @@ class Box:
 
         :return: bool
         """
-        return bool(self.data.get('main', False))
+        return bool(self.data.get("main", False))
 
     @property
     def includes(self) -> list:
@@ -195,7 +203,7 @@ class Box:
 
         :return: list
         """
-        return self.data.get('includes', [])
+        return self.data.get("includes", [])
 
     @property
     def show_not_found(self) -> bool:
@@ -203,7 +211,7 @@ class Box:
 
         :return: bool
         """
-        return bool(self.data.get('show_not_found', False))
+        return bool(self.data.get("show_not_found", False))
 
     @property
     def background_color(self) -> BoxColor:
@@ -253,13 +261,13 @@ class Box:
 
         :return: list
         """
-        table_header = ['Service', 'Status']
+        table_header = ["Service", "Status"]
         if self.show_revision:
-            table_header += ['Commit']
+            table_header += ["Commit"]
         if self.port_view == PortView.column:
-            table_header += ['Port']
+            table_header += ["Port"]
         if self.show_git:
-            table_header += ['Branch']
+            table_header += ["Branch"]
         if self.categories:
             capitalize_names = [category.title() for category in self.categories]
             table_header += capitalize_names
@@ -273,10 +281,15 @@ class Box:
         :return:
             field value with or without port info (str)
         """
-        if not self.data_inspected_from_service['ports']:
+        if not self.data_inspected_from_service["ports"]:
             return self.data_inspected_from_service[field]
 
-        if self.data_inspected_from_service['status'].lower() in ["exited", "error", "not found", "need build"]:
+        if self.data_inspected_from_service["status"].lower() in [
+            "exited",
+            "error",
+            "not found",
+            "need build",
+        ]:
             return self.data_inspected_from_service[field] if field != "ports" else ""
 
         if self.port_view == PortView.column:
@@ -285,7 +298,10 @@ class Box:
         if field != self.port_view.value:
             return self.data_inspected_from_service[field]
         else:
-            return "{} ({})".format(self.data_inspected_from_service[field], self.data_inspected_from_service["ports"])
+            return "{} ({})".format(
+                self.data_inspected_from_service[field],
+                self.data_inspected_from_service["ports"],
+            )
 
     def run(self) -> None:
         """Run main code for update box data.
@@ -321,20 +337,34 @@ class Box:
                 continue
 
             table_data = [
-                format_color(service_name, self.data_inspected_from_service['style'],
-                             self.data_inspected_from_service['theme']),
-                format_color(service_status, self.data_inspected_from_service['style'],
-                             self.data_inspected_from_service['theme'])
+                format_color(
+                    service_name,
+                    self.data_inspected_from_service["style"],
+                    self.data_inspected_from_service["theme"],
+                ),
+                format_color(
+                    service_status,
+                    self.data_inspected_from_service["style"],
+                    self.data_inspected_from_service["theme"],
+                ),
             ]
 
             if self.show_revision:
                 table_data.append(self.git.get_git_revision(service))
 
             if self.port_view == PortView.column:
-                port_string = "" if not self.data_inspected_from_service['ports'] else self._append_ports_in_field(
-                    "ports")
-                table_data.append(format_color(port_string, self.data_inspected_from_service['style'],
-                                               self.data_inspected_from_service['theme']))
+                port_string = (
+                    ""
+                    if not self.data_inspected_from_service["ports"]
+                    else self._append_ports_in_field("ports")
+                )
+                table_data.append(
+                    format_color(
+                        port_string,
+                        self.data_inspected_from_service["style"],
+                        self.data_inspected_from_service["theme"],
+                    )
+                )
 
             if self.show_git:
                 table_data.append(self.git.status(service))
@@ -344,36 +374,53 @@ class Box:
             for category in self.categories:
                 category_data = self._get_service_category_data(service, category)
                 if not category_data:
-                    table_data.append('--')
+                    table_data.append("--")
                 else:
-                    category_status = format_color(category_data['status'], category_data['style'],
-                                                   category_data['theme'])
-                    if self.port_view == PortView.status and category_data['ports'] and \
-                            category_data['status'].lower() not in ["exited", "error", "not found"]:
-                        category_status += ' {}'.format(category_data["ports"])
+                    category_status = format_color(
+                        category_data["status"],
+                        category_data["style"],
+                        category_data["theme"],
+                    )
+                    if (
+                        self.port_view == PortView.status
+                        and category_data["ports"]
+                        and category_data["status"].lower()
+                        not in ["exited", "error", "not found"]
+                    ):
+                        category_status += " {}".format(category_data["ports"])
                     table_data.append(category_status)
             table_lines.append(table_data)
 
         if self.show_revision:
             table_lines = self.format_revision(table_lines)
         table = tabulate(table_lines, table_header)
-        self._widget = dashing.Text(table, color=6, border_color=5, background_color=self.background_color,
-                                    title=self.title)
+        self._widget = dashing.Text(
+            table,
+            color=6,
+            border_color=5,
+            background_color=self.background_color,
+            title=self.title,
+        )
 
     def _get_service_category_data(self, service: str, category: str) -> Optional[dict]:
-        """Find the service name + category service in compose data and return inspect docker data.
+        """Find the service name + category.
+
+        Fin using service in compose data and return inspect docker data.
 
         Example 1
         ---------
-            Include option is "django" and the category option is 'worker'. Service name: django
+            Include option is "django" and the category option is 'worker'.
+                Service name: django
             First search is adding service name + category: django-worker
 
         Example 2
         ---------
-            Include option is "web" and the category option is 'worker'. Service name: django-web
+            Include option is "web" and the category option is
+                'worker'. Service name: django-web
             Second search is removing include, add category: django-worker
 
-        The Search are not case-sensitive and not will not match entire name. 'Auth-Worker1' will be found.
+        The Search are not case-sensitive and not will not
+        match entire name. 'Auth-Worker1' will be found.
         If find, return the docker inspect data for this service.
 
         :param service: service name
@@ -383,9 +430,7 @@ class Box:
         :return: dict or None
         """
         service_to_find = [
-            s
-            for s in self.services
-            if service.lower() in s and category.lower() in s
+            s for s in self.services if service.lower() in s and category.lower() in s
         ]
 
         if not service_to_find and self.includes:
@@ -429,8 +474,7 @@ class Box:
         :return: list
         """
         largest_tag = [
-            len(line[2].split("@")[0] if "@" in line[2] else "")
-            for line in table_lines
+            len(line[2].split("@")[0] if "@" in line[2] else "") for line in table_lines
         ]
         if largest_tag:
             largest_tag = max(largest_tag)  # type: ignore
@@ -446,8 +490,7 @@ class Box:
             commit_hash = formatStr.info(commit_hash, use_prefix=False, theme="dark")
             revision = "{}{}".format(tag, commit_hash)
             line = [
-                column if index != 2 else revision
-                for index, column in enumerate(line)
+                column if index != 2 else revision for index, column in enumerate(line)
             ]
             new_lines.append(line)
 

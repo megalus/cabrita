@@ -1,0 +1,23 @@
+name: publish
+on:
+  push:
+    branches: [ master ]
+jobs:
+  publish:
+    if: github.event_name == 'push' && !contains(github.event.head_commit.message, 'chore(release):')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Setup Poetry
+        uses: abatilo/actions-poetry@v2.1.0
+      - name: Python Semantic Release
+        uses: relekang/python-semantic-release@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          pypi_token: ${{ secrets.POETRY_PYPI_TOKEN_PYPI }}

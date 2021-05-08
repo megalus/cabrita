@@ -4,7 +4,6 @@ from cabrita.components.watchers import Watch
 
 
 class TestWatch(TestCase):
-
     def setUp(self):
         self.watch = Watch()
 

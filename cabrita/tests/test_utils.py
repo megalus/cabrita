@@ -4,39 +4,26 @@ from unittest import TestCase, mock
 
 
 class TestUtils(TestCase):
-
-    @mock.patch('cabrita.abc.utils.subprocess.call', return_value=0)
+    @mock.patch("cabrita.abc.utils.subprocess.call", return_value=0)
     def test_run_command(self, *args):
         from cabrita.abc.utils import run_command
 
-        test_result = run_command(
-            'cd $HOME && ls'
-        )
+        test_result = run_command("cd $HOME && ls")
         assert test_result is True
 
     def test_real_run_command(self):
         from cabrita.abc.utils import run_command
 
-        test_result = run_command(
-            'cd $HOME && ls',
-            get_stdout=True
-        )
-        assert test_result is not ""
+        test_result = run_command("cd $HOME && ls", get_stdout=True)
+        assert test_result != ""
         assert isinstance(test_result, str)
-
-    def test_get_sentry_client(self):
-        from cabrita.abc.utils import get_sentry_client
-
-        os.environ['CABRITA_SENTRY_DSN'] = "http://1234:5678@sentry.local:80/1"
-        test_client = get_sentry_client()
-        assert test_client is not None
 
     def test_get_path(self):
         from cabrita.abc.utils import get_path
 
         # Need to check $HOME only for tests in tox
-        if not os.getenv('HOME'):
-            os.environ['HOME'] = str(Path.home())
+        if not os.getenv("HOME"):
+            os.environ["HOME"] = str(Path.home())
 
         test_path = get_path("$HOME", "")
         assert test_path == str(Path.home())

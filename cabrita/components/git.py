@@ -12,10 +12,11 @@ from typing import Tuple
 from buzio import formatStr
 
 from cabrita.abc.base import InspectTemplate
+from cabrita.abc.utils import persist_on_disk
 from cabrita.components.config import Compose
 
-ARROW_UP = u"↑"
-ARROW_DOWN = u"↓"
+ARROW_UP = "↑"
+ARROW_DOWN = "↓"
 
 
 class GitDirection(Enum):
@@ -52,8 +53,7 @@ class GitInspect(InspectTemplate):
         if not path:
             path = self.path
         branch_is_dirty = self.run(
-            "cd {} && git status --porcelain 2>/dev/null".format(path),
-            get_stdout=True
+            "cd {} && git status --porcelain 2>/dev/null".format(path), get_stdout=True
         )
         return True if branch_is_dirty else False
 
@@ -67,23 +67,27 @@ class GitInspect(InspectTemplate):
         :return: string
         """
         git_tag = self.run(
-            'cd {} && git describe --tags $(git rev-list --tags --max-count=1 2>/dev/null) 2>/dev/null'.format(path),
-            get_stdout=True
+            "cd {} && git describe --tags "
+            "$(git rev-list --tags --max-count=1 2>/dev/null) "
+            "2>/dev/null".format(path),
+            get_stdout=True,
         )
         git_hash = self.run(
-            'cd {} && git rev-parse --short HEAD 2>/dev/null'.format(path),
-            get_stdout=True
+            "cd {} && git rev-parse --short HEAD 2>/dev/null".format(path),
+            get_stdout=True,
         )
         if not git_hash and git_tag:
             return "--"
         if show_branch:
             git_branch = self._get_active_branch(path)
-            git_commit_data = "⑂ {}@{}".format(git_branch, str(git_hash).replace('\n', ''))
+            git_commit_data = "⑂ {}@{}".format(
+                git_branch, str(git_hash).replace("\n", "")
+            )
         else:
-            git_commit_data = "⑂ {}".format(str(git_hash).replace('\n', ''))
+            git_commit_data = "⑂ {}".format(str(git_hash).replace("\n", ""))
 
         if git_tag:
-            git_status = u"✎ {}".format(str(git_tag).replace('\n', '')[:15])
+            git_status = "✎ {}".format(str(git_tag).replace("\n", "")[:15])
         else:
             git_status = git_commit_data
 
@@ -108,18 +112,20 @@ class GitInspect(InspectTemplate):
 
         :return: string
         """
-        if not os.path.isdir(os.path.join(path, '.git')):
+        if not os.path.isdir(os.path.join(path, ".git")):
             return "OK"
 
         git_behind = self.run(
-            "cd {} && git fetch && git status -bs --porcelain 2> /dev/null".format(path),
-            get_stdout=True
+            "cd {} && git fetch && git status -bs --porcelain 2> /dev/null".format(
+                path
+            ),
+            get_stdout=True,
         )
 
         if not git_behind:
             git_state = ""
-        elif 'behind' in git_behind:
-            git_state = formatStr.error('NEED PULL', use_prefix=False)
+        elif "behind" in git_behind:
+            git_state = formatStr.error("NEED PULL", use_prefix=False)
         else:
             git_state = formatStr.success("OK", use_prefix=False)
         return git_state
@@ -143,29 +149,51 @@ class GitInspect(InspectTemplate):
 
         if branch:
             branch_ahead, branch_behind = self._get_modifications_in_branch()
-            target_branch_ahead, target_branch_behind = self._get_modifications_in_target_branch(branch)
+            (
+                target_branch_ahead,
+                target_branch_behind,
+            ) = self._get_modifications_in_target_branch(branch)
 
             text = "{}{}{}".format(
                 self._get_abbreviate_name(branch),
-                formatStr.error(" {} {}".format(ARROW_DOWN, branch_behind), use_prefix=False) if branch_behind else "",
-                formatStr.error(" {} {}".format(ARROW_UP, branch_ahead), use_prefix=False) if branch_ahead else ""
+                formatStr.error(
+                    " {} {}".format(ARROW_DOWN, branch_behind), use_prefix=False
+                )
+                if branch_behind
+                else "",
+                formatStr.error(
+                    " {} {}".format(ARROW_UP, branch_ahead), use_prefix=False
+                )
+                if branch_ahead
+                else "",
             )
             if target_branch_ahead or target_branch_behind:
                 text += " ({}{}{})".format(
                     self.target_branch,
-                    formatStr.error(" {} {}".format(ARROW_DOWN, target_branch_behind),
-                                    use_prefix=False) if target_branch_behind else "",
-                    formatStr.error(" {} {}".format(ARROW_UP, target_branch_ahead),
-                                    use_prefix=False) if target_branch_ahead else ""
+                    formatStr.error(
+                        " {} {}".format(ARROW_DOWN, target_branch_behind),
+                        use_prefix=False,
+                    )
+                    if target_branch_behind
+                    else "",
+                    formatStr.error(
+                        " {} {}".format(ARROW_UP, target_branch_ahead), use_prefix=False
+                    )
+                    if target_branch_ahead
+                    else "",
                 )
-            self._status[service] = formatStr.warning(text, use_prefix=False) \
-                if self.branch_is_dirty() else formatStr.success(
-                text,
-                use_prefix=False)
+            self._status[service] = (
+                formatStr.warning(text, use_prefix=False)
+                if self.branch_is_dirty()
+                else formatStr.success(text, use_prefix=False)
+            )
+            if target_branch_behind != 0:
+                persist_on_disk("add", service, "need_update")
+            else:
+                persist_on_disk("remove", service, "need_update")
         else:
             self._status[service] = formatStr.error(
-                "Branch Not Found",
-                use_prefix=False
+                "Branch Not Found", use_prefix=False
             )
 
     def _get_modifications_in_target_branch(self, branch: str) -> Tuple[int, int]:
@@ -175,10 +203,13 @@ class GitInspect(InspectTemplate):
 
         :return: typle (int, int)
         """
-        if self.target_branch and \
-                branch != self.target_branch.replace("origin/", ""):
-            target_branch_ahead = self._get_commits_from_target(self.path, branch, GitDirection.ahead)
-            target_branch_behind = self._get_commits_from_target(self.path, branch, GitDirection.behind)
+        if self.target_branch and branch != self.target_branch.replace("origin/", ""):
+            target_branch_ahead = self._get_commits_from_target(
+                self.path, branch, GitDirection.ahead
+            )
+            target_branch_behind = self._get_commits_from_target(
+                self.path, branch, GitDirection.behind
+            )
             return target_branch_ahead, target_branch_behind
         else:
             return 0, 0
@@ -202,10 +233,13 @@ class GitInspect(InspectTemplate):
         if not path:
             path = self.path
         branch = self.run(
-            "cd {} && git branch | grep \"*\" 2>/dev/null".format(path),
-            get_stdout=True
+            'cd {} && git branch | grep "*" 2>/dev/null'.format(path), get_stdout=True
         )
-        return branch.replace("* ", "").replace("\n", "").replace("(", "").replace(")", "") if branch else ""
+        return (
+            branch.replace("* ", "").replace("\n", "").replace("(", "").replace(")", "")
+            if branch
+            else ""
+        )
 
     @staticmethod
     def _get_abbreviate_name(full_name) -> str:
@@ -244,7 +278,9 @@ class GitInspect(InspectTemplate):
         else:
             return 0
 
-    def _get_commits_from_target(self, path: str, name: str, direction: GitDirection) -> int:
+    def _get_commits_from_target(
+        self, path: str, name: str, direction: GitDirection
+    ) -> int:
         """Get number of commits based on target branch for informed direction.
 
         :param path: path to search
@@ -258,7 +294,7 @@ class GitInspect(InspectTemplate):
         task = "cd {} && git log {}..{} --oneline 2>/dev/null".format(
             path,
             name if direction == GitDirection.behind else self.target_branch,
-            self.target_branch if direction == GitDirection.behind else name
+            self.target_branch if direction == GitDirection.behind else name,
         )
         ret = self.run(task, get_stdout=True)
         return 0 if not ret else len(ret.split("\n")) - 1

@@ -3,7 +3,7 @@
 Checks version number for upgrades in PyPI
 """
 import sys
-from typing import Optional, List
+from typing import List, Optional
 
 import requests
 from buzio import console, formatStr
@@ -45,12 +45,14 @@ def check_version() -> str:
     version_data = versions()
     if version_data:
         last_version = version_data[-1]
-    if parse_version(last_version) > parse_version(__version__) and \
-            ("rc" not in last_version and
-             "b" not in last_version and "dev" not in last_version):
+    if parse_version(last_version) > parse_version(__version__) and (
+        "rc" not in last_version
+        and "b" not in last_version
+        and "dev" not in last_version
+    ):
         console.warning(
-            "You're running a outdated version.\n" +
-            "Last Version: {}\n".format(last_version)
+            "You're running a outdated version.\n"
+            + "Last Version: {}\n".format(last_version)
         )
         ret = console.confirm("Do you want to upgrade?")
         if ret:
@@ -61,5 +63,7 @@ def check_version() -> str:
                 console.error("\nThere is a error during upgrade. Please try again.")
             sys.exit(0)
         else:
-            return formatStr.error('{} (update available)'.format(last_version), use_prefix=False)
+            return formatStr.error(
+                "{} (update available)".format(last_version), use_prefix=False
+            )
     return formatStr.success(last_version, use_prefix=False)

@@ -2,8 +2,7 @@ from unittest import TestCase, mock
 
 import requests_mock
 
-PYPI_TEXT = \
-    """{
+PYPI_TEXT = """{
   "releases": {
     "1.6.3": [
       {
@@ -81,25 +80,28 @@ PYPI_TEXT = \
 class TestVersions(TestCase):
     def test_versions(self):
         from cabrita.versions import versions
+
         with requests_mock.mock() as m:
-            url = 'https://pypi.python.org/pypi/cabrita/json'
+            url = "https://pypi.python.org/pypi/cabrita/json"
             m.get(url, text=PYPI_TEXT)
 
             result = versions()
-        self.assertListEqual(result, ['1.6.3', '1.6.4'])
+        self.assertListEqual(result, ["1.6.3", "1.6.4"])
 
-    @mock.patch('buzio.console.confirm', return_value=False)
-    @mock.patch('cabrita.versions.versions', return_value=['99.99.99'])
+    @mock.patch("buzio.console.confirm", return_value=False)
+    @mock.patch("cabrita.versions.versions", return_value=["99.99.99"])
     def test_check_version(self, *mocks):
         from cabrita.versions import check_version
-        result = check_version()
-        self.assertEqual(result, u'[31m99.99.99 (update available)[22m')
 
-    @mock.patch('buzio.console.confirm', return_value=True)
-    @mock.patch('buzio.console.run', return_value=True)
-    @mock.patch('cabrita.versions.versions', return_value=['99.99.99'])
+        result = check_version()
+        self.assertEqual(result, "[31m99.99.99 (update available)[22m")
+
+    @mock.patch("buzio.console.confirm", return_value=True)
+    @mock.patch("buzio.console.run", return_value=True)
+    @mock.patch("cabrita.versions.versions", return_value=["99.99.99"])
     def test_check_version_with_update(self, *mocks):
         from cabrita.versions import check_version
+
         with self.assertRaises(SystemExit) as cm:
             check_version()
 

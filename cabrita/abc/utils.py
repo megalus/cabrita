@@ -2,17 +2,9 @@
 import os
 import re
 import subprocess
-from typing import Optional
+from pathlib import Path
 
 from buzio import formatStr
-from raven import Client
-from raven.transport.requests import RequestsHTTPTransport
-
-
-def get_sentry_client() -> Optional[Client]:
-    """Return synchronous Sentry client if DSN is available."""
-    return Client(os.getenv('CABRITA_SENTRY_DSN'), transport=RequestsHTTPTransport) if os.getenv(
-        'CABRITA_SENTRY_DSN') else None
 
 
 def run_command(task, get_stdout=False):
@@ -32,11 +24,7 @@ def run_command(task, get_stdout=False):
         if get_stdout is True:
             ret = subprocess.check_output(task, shell=True)
         else:
-            ret = subprocess.call(
-                task,
-                shell=True,
-                stderr=subprocess.STDOUT
-            )
+            ret = subprocess.call(task, shell=True, stderr=subprocess.STDOUT)
 
         if ret != 0 and not get_stdout:
             return False
@@ -48,7 +36,7 @@ def run_command(task, get_stdout=False):
     if not get_stdout or ret == 0:
         return True
     if isinstance(ret, bytes):
-        return ret.decode('utf-8')
+        return ret.decode("utf-8")
     else:
         return ret
 
@@ -59,6 +47,7 @@ def get_path(path: str, base_path: str) -> str:
     Converts environment variables to path
     Converts relative path to full path
     """
+
     def _convert_env_to_path(env_in_path):
         s = re.search(r"\${(\w+)}", env_in_path)
         if not s:
@@ -69,8 +58,7 @@ def get_path(path: str, base_path: str) -> str:
             if not name:
                 raise ValueError("Can't find value for {}".format(env))
             path_list = [
-                part if "$" not in part else name
-                for part in env_in_path.split("/")
+                part if "$" not in part else name for part in env_in_path.split("/")
             ]
             path = os.path.join(*path_list)
         else:
@@ -90,4 +78,21 @@ def get_path(path: str, base_path: str) -> str:
 def format_color(text: str, style: str, theme: str = None) -> str:
     """Format string with color using formatStr method."""
     func = getattr(formatStr, style)
-    return func(text, use_prefix=False, theme=theme) if theme else func(text, use_prefix=False)
+    return (
+        func(text, use_prefix=False, theme=theme)
+        if theme
+        else func(text, use_prefix=False)
+    )
+
+
+def persist_on_disk(operation, service, folder):
+    """Persist or remove in disk the service which needs action."""
+    base_path = str(Path.home())
+    config_path = os.path.join(base_path, ".cabrita")
+    file_path = os.path.join(config_path, folder, service)
+    if operation == "add":
+        with open(file_path, "w+") as file:
+            file.write(service)
+    else:
+        if os.path.exists(file_path):
+            os.remove(file_path)

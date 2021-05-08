@@ -19,13 +19,12 @@ import os
 import sys
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 import yaml
 from buzio import console
 
-from cabrita.abc.utils import get_path
-from cabrita.abc.utils import run_command
+from cabrita.abc.utils import get_path, run_command
 
 
 class ConfigTemplate(ABC):
@@ -100,8 +99,8 @@ class ConfigTemplate(ABC):
                 try:
                     self.full_path = get_path(path, base_path)
                     self.console.info("Reading {}".format(self.full_path))
-                    with open(self.full_path, 'r') as file:
-                        self.compose_data = yaml.load(file.read())
+                    with open(self.full_path, "r") as file:
+                        self.compose_data = yaml.safe_load(file.read())
                         for key in self.compose_data:  # type: ignore
                             self._convert_lists(self.compose_data, key)
                         self.compose_data_list.append(self.compose_data)
@@ -201,9 +200,7 @@ class ConfigTemplate(ABC):
             if isinstance(source[key], dict):
                 for k in source[key]:
                     self._load_data_from_override(
-                        source=source[key],
-                        target=target[key],
-                        key=k
+                        source=source[key], target=target[key], key=k
                     )
             else:
                 if isinstance(target[key], list) and isinstance(source[key], list):

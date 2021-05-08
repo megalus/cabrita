@@ -7,7 +7,9 @@ This package has the cabrita components for:
 | dashboard = the Dashboard class (convert boxes to dashing widgets and display it)
 | docker = the DockerInspect class (the runner for inspect docker containers)
 | git = the GitInspect class (the runner for inspect git data)
-| watchers = the Watch class (the collection of internal and user watchers for the dashboard
+| watchers = the Watch class (the collection of internal and
+| user watchers for the dashboard
+
 """
 from enum import Enum
 from typing import List

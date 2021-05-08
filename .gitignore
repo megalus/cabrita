@@ -101,3 +101,6 @@ venv*/
 # mypy
 .mypy_cache/
 /examples/django_app/db.sqlite3
+
+.idea
+poetry.lock

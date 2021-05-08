@@ -8,21 +8,20 @@ each service in dashboard.
 import datetime
 import json
 import os
-import re
 import time
 from collections import Counter
 from enum import Enum
-from typing import List, Tuple, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 from tzlocal import get_localzone
 
 from cabrita.abc.base import InspectTemplate
-from cabrita.abc.utils import get_path
+from cabrita.abc.utils import get_path, persist_on_disk
 from cabrita.components.config import Compose
 
-IN = u"↗"
-OUT = u"↘"
-BOTH = u"⇄"
+IN = "↗"
+OUT = "↘"
+BOTH = "⇄"
 
 
 class PortDetail(Enum):
@@ -64,8 +63,15 @@ class PortView(Enum):
 class DockerInspect(InspectTemplate):
     """DockerInspect class."""
 
-    def __init__(self, compose: Compose, interval: int, port_view: PortView, port_detail: PortDetail,
-                 files_to_watch: List[str], services_to_check_git: List[str]) -> None:
+    def __init__(
+        self,
+        compose: Compose,
+        interval: int,
+        port_view: PortView,
+        port_detail: PortDetail,
+        files_to_watch: List[str],
+        services_to_check_git: List[str],
+    ) -> None:
         """Init class."""
         super(DockerInspect, self).__init__(compose, interval)
         self.port_view = PortView(port_view)
@@ -73,10 +79,10 @@ class DockerInspect(InspectTemplate):
         self.files_to_watch = files_to_watch
         self.services_to_check_git = services_to_check_git
         self.default_data = {
-            'name': "Fetching...",
-            'status': "Fetching...",
-            'format': 'dark',
-            'ports': ""
+            "name": "Fetching...",
+            "status": "Fetching...",
+            "format": "dark",
+            "ports": "",
         }
 
     def inspect(self, service: str) -> None:
@@ -89,6 +95,7 @@ class DockerInspect(InspectTemplate):
         index = 1
         all_containers_processed = False
         result_list = []  # type: list
+        need_build = False
         while not all_containers_processed:
             container_name = self._get_container_name(service, index)
             inspect_data = self._get_inspect_data(container_name)
@@ -98,31 +105,47 @@ class DockerInspect(InspectTemplate):
                     result_list.append(("Not Found", "info", "dark"))
                 all_containers_processed = True
             elif self._need_build(service, inspect_data):
+                need_build = True
                 result_list.append(("NEED BUILD", "error", None))
                 index += 1
             else:
                 result_list.append(self._define_status(inspect_data))
                 index += 1
 
+        if need_build:
+            persist_on_disk("add", service, "need_image")
+        else:
+            persist_on_disk("remove", service, "need_image")
+
         if len(result_list) == 1:
             service_status = result_list[0][0]
             text_style = result_list[0][1]
             text_theme = result_list[0][2]
+        elif need_build:
+            service_status = "NEED BUILD"
+            text_style = "error"
+            text_theme = None
         else:
             stats = Counter([result[0] for result in result_list]).most_common()[0][0]
             service_status = "{}{}".format(
                 stats,
-                " x{}".format(len(result_list)) if 'exited' not in stats.lower() else ""
+                " x{}".format(len(result_list))
+                if "exited" not in stats.lower()
+                else "",
             )
-            text_style = Counter([result[1] for result in result_list]).most_common()[0][0]
-            text_theme = Counter([result[2] for result in result_list]).most_common()[0][0]
+            text_style = Counter([result[1] for result in result_list]).most_common()[
+                0
+            ][0]
+            text_theme = Counter([result[2] for result in result_list]).most_common()[
+                0
+            ][0]
 
         self._status[service] = {
             "name": service,
             "status": service_status,
             "style": text_style,
             "theme": text_theme,
-            "ports": self._get_service_ports(service)
+            "ports": self._get_service_ports(service),
         }
 
     def _get_service_ports(self, service: str) -> str:
@@ -143,8 +166,8 @@ class DockerInspect(InspectTemplate):
 
         for port in port_list:
             if ":" in port:
-                external_ports.append("{}".format(port.split(':')[0]))
-                internal_ports.append("{}".format(port.split(':')[-1]))
+                external_ports.append("{}".format(port.split(":")[0]))
+                internal_ports.append("{}".format(port.split(":")[-1]))
             else:
                 internal_ports.append("{}".format(port))
 
@@ -152,14 +175,16 @@ class DockerInspect(InspectTemplate):
         internal_ports = sorted(set(internal_ports))
 
         if internal_ports == external_ports:
-            return '{} {}'.format(BOTH, " ".join(external_ports))
+            return "{} {}".format(BOTH, " ".join(external_ports))
 
         if self.port_detail == PortDetail.external:
-            service_string = '{} {}'.format(OUT, "/".join(external_ports))
+            service_string = "{} {}".format(OUT, "/".join(external_ports))
         elif self.port_detail == PortDetail.internal:
-            service_string = '{} {}'.format(IN, "/".join(internal_ports))
+            service_string = "{} {}".format(IN, "/".join(internal_ports))
         else:
-            service_string = '{} {} {} {}'.format(OUT, "/".join(external_ports), IN, "/".join(internal_ports))
+            service_string = "{} {} {} {}".format(
+                OUT, "/".join(external_ports), IN, "/".join(internal_ports)
+            )
 
         return service_string
 
@@ -175,7 +200,7 @@ class DockerInspect(InspectTemplate):
         :return: string
         """
         # Try container_name first
-        name = self.compose.get_from_service(service, 'container_name')
+        name = self.compose.get_from_service(service, "container_name")
         if not name:
             # Generate default_name
             name = os.path.basename(os.path.dirname(self.compose.full_path))
@@ -189,10 +214,7 @@ class DockerInspect(InspectTemplate):
 
         :return: dict
         """
-        ret = self.run(
-            'docker inspect {} 2>/dev/null'.format(service),
-            get_stdout=True
-        )
+        ret = self.run("docker inspect {} 2>/dev/null".format(service), get_stdout=True)
         return json.loads(ret)[0] if ret else {}
 
     @staticmethod
@@ -203,15 +225,19 @@ class DockerInspect(InspectTemplate):
 
         :return: string
         """
-        if inspect_state.get('Health', False) and \
-                inspect_state['Status'].lower() == 'running':
-            service_status = inspect_state['Health']['Status'].title()
+        if (
+            inspect_state.get("Health", False)
+            and inspect_state["Status"].lower() == "running"
+        ):
+            service_status = inspect_state["Health"]["Status"].title()
         else:
-            service_status = inspect_state['Status'].title()
+            service_status = inspect_state["Status"].title()
         return service_status
 
     @staticmethod
-    def _get_style_and_theme_for_status(status: str, inspect_state: dict) -> Tuple[str, Union[str, None]]:
+    def _get_style_and_theme_for_status(
+        status: str, inspect_state: dict
+    ) -> Tuple[str, Union[str, None]]:
         """Get text theme and style for status.
 
         :param status: status retrieved from docker inspect data
@@ -220,14 +246,14 @@ class DockerInspect(InspectTemplate):
 
         :return: tuple (string, string or None)
         """
-        if not inspect_state['Running'] and not inspect_state['Paused']:
-            return 'info', 'dark'
-        if status.lower() in ['running', 'healthy']:
-            return 'success', None
-        if inspect_state['Health']['FailingStreak'] > 3:
-            return 'error', None
+        if not inspect_state["Running"] and not inspect_state["Paused"]:
+            return "info", "dark"
+        if status.lower() in ["running", "healthy"]:
+            return "success", None
+        if inspect_state["Health"]["FailingStreak"] > 3:
+            return "error", None
         else:
-            return 'warning', None
+            return "warning", None
 
     def _define_status(self, inspect_data) -> Tuple[str, str, Optional[str]]:
         """Return service running status based on docker inspect data.
@@ -236,10 +262,12 @@ class DockerInspect(InspectTemplate):
 
         :return: tuple (string, string, string or None)
         """
-        if not inspect_data.get('State'):
+        if not inspect_data.get("State"):
             return "Error", "error", None
-        status = self._get_running_status(inspect_data['State'])
-        style, theme = self._get_style_and_theme_for_status(status, inspect_data['State'])
+        status = self._get_running_status(inspect_data["State"])
+        style, theme = self._get_style_and_theme_for_status(
+            status, inspect_data["State"]
+        )
 
         return status, style, theme
 
@@ -265,10 +293,9 @@ class DockerInspect(InspectTemplate):
         :return: bool
         """
         test_date = None
-        image_name = inspect_data['Config']['Image']
+        image_name = inspect_data["Config"]["Image"]
         image_data = self.run(
-            'docker inspect {} 2>/dev/null'.format(image_name),
-            get_stdout=True
+            "docker inspect {} 2>/dev/null".format(image_name), get_stdout=True
         )
         if image_data:
             image_data = json.loads(image_data)[0]
@@ -276,30 +303,27 @@ class DockerInspect(InspectTemplate):
             # Get current UTC offset
             time_now = datetime.datetime.now()
             time_now_utc = datetime.datetime.utcnow()
-            time_offset_seconds = (
-                    time_now - time_now_utc).total_seconds()
+            time_offset_seconds = (time_now - time_now_utc).total_seconds()
             utc_offset = time.gmtime(abs(time_offset_seconds))
             utc_string = "{}{}".format(
                 "-" if time_offset_seconds < 0 else "+",
-                time.strftime("%H%M", utc_offset)
+                time.strftime("%H%M", utc_offset),
             )
-            date = image_data.get('Created')[:-4] + " " + utc_string
-            test_date = datetime.datetime.strptime(
-                date, "%Y-%m-%dT%H:%M:%S.%f %z")
+            date = image_data.get("Created")[:-4] + " " + utc_string
+            test_date = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f %z")
 
-        label = inspect_data['Config']['Labels'].get('com.docker.compose.service')
+        label = inspect_data["Config"]["Labels"].get("com.docker.compose.service")
         if not label:
             return False
         full_path = None
-        if test_date and self.compose.get_from_service(label, 'build'):
-            build_path = self.compose.get_from_service(label, 'build')
+        if test_date and self.compose.get_from_service(label, "build"):
+            build_path = self.compose.get_from_service(label, "build")
             if isinstance(build_path, dict):
-                build_path = build_path.get('context')
+                build_path = build_path.get("context")
             full_path = get_path(build_path, self.compose.base_path)
             list_dates = [
                 datetime.datetime.fromtimestamp(
-                    os.path.getmtime(os.path.join(full_path, file)),
-                    tz=get_localzone()
+                    os.path.getmtime(os.path.join(full_path, file)), tz=get_localzone()
                 )
                 for file in self.files_to_watch
                 if os.path.isfile(os.path.join(full_path, file))
@@ -312,8 +336,10 @@ class DockerInspect(InspectTemplate):
         # Ex.: 2018-02-23 18:31:45 -0300
         if service in self.services_to_check_git and full_path:
             git_log = self.run(
-                'cd {} && git log -1 --pretty=format:"%cd" --date=iso'.format(full_path),
-                get_stdout=True
+                'cd {} && git log -1 --pretty=format:"%cd" --date=iso'.format(
+                    full_path
+                ),
+                get_stdout=True,
             )
             date_fmt = "%Y-%m-%d %H:%M:%S %z"
             if git_log:

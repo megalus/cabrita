@@ -1,0 +1,99 @@
+[tool.coverage.report]
+fail_under = 90
+
+[tool.black]
+target-version = ['py37','py38']
+include = '\.pyi?$'
+exclude = '''
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | \venv
+    | \.aws-sam
+    | _build
+    | buck-out
+    | build
+    | dist
+    | node_modules
+  )/
+)
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.semantic_release]
+version_variable = [
+    "cabrita/__init__.py:__version__",
+    "pyproject.toml:version"
+]
+branch = "master"
+upload_to_pypi = true
+upload_to_release = true
+build_command = "python -m pip install -U twine poetry && poetry build"
+
+[tool.poetry]
+name = "cabrita"
+version = "2.2.1"
+description = "Create dashboard from docker-compose.yml"
+authors = ["Chris Maillefaud <chris@megalus.com.br>"]
+classifiers=[
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: User Interfaces",
+    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+]
+
+[tool.poetry.scripts]
+cab = 'cabrita.run:run'
+cabrita = 'cabrita.run:run'
+
+[tool.poetry.dependencies]
+python = ">=3.0, !=3.1, !=3.2, !=3.3, !=3.4, !=3.5, !=3.6, ^3.7, <4"
+buzio = "*"
+click = "*"
+GitPython = "*"
+pydashing = "*"
+requests = "*"
+tabulate = "*"
+sentry-sdk = "*"
+tzlocal = "*"
+psutil = "*"
+sphinx = "*"
+sphinx-rtd-theme = "*"
+PyYAML = "*"
+
+[tool.poetry.dev-dependencies]
+coverage = "*"
+ipdb = "*"
+mypy = "*"
+twine = "*"
+pre-commit = "*"
+bandit = "*"
+isort = "*"
+black = "*"
+pytest = "*"
+flake8 = "*"
+requests-mock = "*"
+pytest-cov = "*"
+pytest-mock = "*"
+pytest-flake8 = "*"
+pytest-freezegun = "*"
+pytest-xdist ="*"
+auto-changelog = "*"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

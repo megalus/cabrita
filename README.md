@@ -7,7 +7,8 @@
 [![Documentation Status](https://readthedocs.org/projects/cabrita/badge/?version=latest)](https://cabrita.readthedocs.io/en/latest/?badge=latest)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/ea94adacb6664984916474a909c4c4e4)](https://www.codacy.com/app/chrismaille/cabrita?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=chrismaille/cabrita&amp;utm_campaign=Badge_Grade)
 [![Maintainability](https://api.codeclimate.com/v1/badges/3475b300e01e18d8c9e8/maintainability)](https://codeclimate.com/github/chrismaille/cabrita/maintainability)
-[![Requirements Status](https://requires.io/github/chrismaille/cabrita/requirements.svg?branch=develop)](https://requires.io/github/chrismaille/cabrita/requirements/?branch=master)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 
 Cabrita is a Terminal Dashboard for docker services. You can easily
 follow the status for your docker containers:
@@ -18,11 +19,11 @@ follow the status for your docker containers:
 * The git status for the source code inside them
 * The container healthcheck status, if available
 
-### Index
+### Install
 
-- [Usage](#usage)
-- [Customize](#customize)
-- [More info](#more-info)
+```shell
+$ pip install cabrita
+```
 
 ### Usage
 
@@ -30,17 +31,17 @@ Usage is very simple: just change directory where's your
 `docker-compose.yml` is located and run:
 
 ```bash
-$ cd /path/to/docker_compose/file
-$ cabrita
+$ cd /path/to/your/docker_compose
+$ cab # or cabrita
 ```
 
-[![asciicast](https://asciinema.org/a/Z31bttxgBe4JhuyBPvLYomoqc.png)](https://asciinema.org/a/Z31bttxgBe4JhuyBPvLYomoqc)
+[![asciicast](https://asciinema.org/a/Z31bttxgBe4JhuyBPvLYomoqc.svg)](https://asciinema.org/a/Z31bttxgBe4JhuyBPvLYomoqc)
 
 You can also pass the full path for the `docker-compose.yml` files on
 command line:
 
 ```bash
-$ cabrita /path/to/docker/compose/file1 /path/to/docker/compose/file2
+$ cab /path/to/docker-compose-file /path/to/docker-compose-override
 ```
 
 ### Customize Dashboard
@@ -58,7 +59,6 @@ title: My Docker Project
 background_color: grey # options: black, blue, cyan, grey, yellow, white
 compose_files:
   - ./docker-compose.yml
-  - ./docker-compose.override.yml
 boxes:
   main_box:
     main: true
@@ -93,14 +93,16 @@ $ cd path/to/examples
 $ TEST_PROJECT_PATH=$(pwd) docker-compose up -d
 
 # Then, you can call directy the app passing the yaml path:
-$ cabrita --path cabrita.yml
+$ cab --path cabrita.yml
 
 # Or you can use the CABRITA_PATH environment variable:
 $ export CABRITA_PATH=/path/to/cabrita.yml
-$ cabrita
+$ cab
 ```
 
-The custom dashboard will show: ![Image](source/assets/c1.png)
+Your Dashboard will show like this:
+
+![Image](docs/assets/c1.png)
 
 ### More Info
 

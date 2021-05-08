@@ -14,9 +14,9 @@ from typing import List, Optional
 
 from cabrita.components import BoxColor
 from cabrita.components.box import Box
-from cabrita.components.config import Config, Compose
+from cabrita.components.config import Compose, Config
 from cabrita.components.dashboard import Dashboard
-from cabrita.components.docker import DockerInspect, PortView, PortDetail
+from cabrita.components.docker import DockerInspect, PortDetail, PortView
 from cabrita.components.git import GitInspect
 from cabrita.components.watchers import DockerComposeWatch, SystemWatch, UserWatch
 
@@ -24,8 +24,13 @@ from cabrita.components.watchers import DockerComposeWatch, SystemWatch, UserWat
 class CabritaCommand:
     """Cabrita Command class."""
 
-    def __init__(self, cabrita_path: str, compose_path: tuple,
-                 background_color: Optional[str] = "black", version: str = "dev") -> None:
+    def __init__(
+        self,
+        cabrita_path: str,
+        compose_path: tuple,
+        background_color: Optional[str] = "black",
+        version: str = "dev",
+    ) -> None:
         """Init class."""
         self.version = version
         self.cabrita_path = cabrita_path
@@ -43,7 +48,11 @@ class CabritaCommand:
 
         :return: BoxColor instance
         """
-        return getattr(BoxColor, self._background_color) if self._background_color else self.config.background_color
+        return (
+            getattr(BoxColor, self._background_color)
+            if self._background_color
+            else self.config.background_color
+        )
 
     @property
     def has_a_valid_config(self) -> bool:
@@ -83,24 +92,18 @@ class CabritaCommand:
 
         :return: None
         """
-        git = GitInspect(
-            target_branch="",
-            interval=30,
-            compose=self.compose
-        )
+        git = GitInspect(target_branch="", interval=30, compose=self.compose)
         self.dashboard.compose_watch = DockerComposeWatch(
             background_color=self.background_color,
             git=git,
             config=self.config,
-            version=self.version
+            version=self.version,
         )
         self.dashboard.system_watch = SystemWatch(
             background_color=self.background_color
         )
         self.dashboard.user_watches = UserWatch(
-            background_color=self.background_color,
-            git=git,
-            config=self.config
+            background_color=self.background_color, git=git, config=self.config
         )
 
     def _add_services_in_boxes(self) -> None:
@@ -117,22 +120,33 @@ class CabritaCommand:
 
         for name in self.config.boxes:
             box_data = self.config.boxes[name]
-            docker = DockerInspect(compose=self.compose, interval=box_data.get('interval', 0),
-                                   port_view=box_data.get('port_view', PortView.hidden),
-                                   port_detail=box_data.get('port_detail', PortDetail.external),
-                                   files_to_watch=box_data.get('watch_for_build_using_files', []),
-                                   services_to_check_git=box_data.get('watch_for_build_using_git', []))
+            docker = DockerInspect(
+                compose=self.compose,
+                interval=box_data.get("interval", 0),
+                port_view=box_data.get("port_view", PortView.hidden),
+                port_detail=box_data.get("port_detail", PortDetail.external),
+                files_to_watch=box_data.get("watch_for_build_using_files", []),
+                services_to_check_git=box_data.get("watch_for_build_using_git", []),
+            )
             git = GitInspect(
-                target_branch=box_data.get('watch_branch', ""),
-                interval=box_data.get('git_fetch_interval', 30),
-                compose=self.compose
+                target_branch=box_data.get("watch_branch", ""),
+                interval=box_data.get("git_fetch_interval", 30),
+                compose=self.compose,
             )
 
             services_in_box = []
             for service in self.compose.services:
-                if service not in included_services and service not in self.config.ignore_services:
+                if (
+                    service not in included_services
+                    and service not in self.config.ignore_services
+                ):
                     services_list = set(
-                        [s.lower() for s in box_data.get('includes', []) + box_data.get('categories', [])])
+                        [
+                            s.lower()
+                            for s in box_data.get("includes", [])
+                            + box_data.get("categories", [])
+                        ]
+                    )
                     for service_name in services_list:
                         if service_name.lower() in service.lower():
                             services_in_box.append(service)
@@ -142,7 +156,7 @@ class CabritaCommand:
                 compose=self.compose,
                 docker=docker,
                 git=git,
-                background_color=self.background_color
+                background_color=self.background_color,
             )
             box.services = services_in_box
             box.load_data(box_data)
@@ -153,7 +167,10 @@ class CabritaCommand:
                 self.dashboard.add_box(box)
         if main_box:
             for service in self.compose.services:
-                if service not in included_services and service not in self.config.ignore_services:
+                if (
+                    service not in included_services
+                    and service not in self.config.ignore_services
+                ):
                     main_box.add_service(service)
             self.dashboard.add_box(main_box)
 
